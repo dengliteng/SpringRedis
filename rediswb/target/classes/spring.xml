@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:mybatis-spring="http://mybatis.org/schema/mybatis-spring"
+	xmlns:tx="http://www.springframework.org/schema/tx" xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://mybatis.org/schema/mybatis-spring http://mybatis.org/schema/mybatis-spring.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+	<!-- 配置包扫描 -->
+	<context:component-scan base-package="cn.ybzy.rediswb">
+		<context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller" />
+		<context:exclude-filter type="annotation" expression="org.springframework.web.bind.annotation.ControllerAdvice" />
+	</context:component-scan>
+
+	<context:property-placeholder location="classpath:jdbc.properties"  ignore-unresolvable="true"/>
+	<!-- 配置C3P0数据连接池 -->
+	<bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+		<property name="user" value="${jdbc.user}"></property>
+		<property name="password" value="${jdbc.password}"></property>
+		<property name="driverClass" value="${jdbc.driverClass}"></property>
+		<property name="jdbcUrl" value="${jdbc.jdbcUrl}"></property>
+		<property name="acquireIncrement" value="${jdbc.acquireIncrement}"></property>
+		<property name="initialPoolSize" value="${jdbc.initialPoolSize}"></property>
+		<property name="minPoolSize" value="${jdbc.minPoolSize}"></property>
+		<property name="maxPoolSize" value="${jdbc.maxPoolSize}"></property>
+		<property name="maxStatements" value="${jdbc.maxStatements}"></property>
+		<property name="maxStatementsPerConnection" value="${jdbc.maxStatementsPerConnection}"></property>
+	</bean>
+
+	<!-- 事务配置 -->
+	<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource"></property>
+	</bean>
+
+
+	<!-- 配置事务属性 -->
+	<tx:advice id="txAdvice" transaction-manager="transactionManager">
+		<tx:attributes>
+			<tx:method name="get*" read-only="true" />
+			<tx:method name="load*" read-only="true" />
+			<tx:method name="find*" read-only="true" />
+			<tx:method name="select*" read-only="true" />
+			<tx:method name="*" read-only="false" />
+		</tx:attributes>
+	</tx:advice>
+
+
+	<!-- 配置事务的切入点 -->
+	<aop:config>
+		<aop:pointcut expression="execution(* cn.ybzy.rediswb.service.*.*(..))" id="txPointcut" />
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="txPointcut" />
+	</aop:config>
+
+	<!-- 整合Mybatis -->
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSource"></property>
+		<property name="configLocation" value="classpath:mybatis.xml"></property>
+		<property name="mapperLocations" value="classpath:mapper/*.xml"></property>
+	</bean>
+
+	<!-- 这句话就自动扫描 cn.ybzy.rediswb.dao 的接口，mybatis会自动根据接口生产代理对象-->
+	<mybatis-spring:scan base-package="cn.ybzy.rediswb.dao" />
+
+	<bean class="cn.ybzy.rediswb.redis.JedisClientPool" id="jedisClientPool">
+		<property name="jedisPool" ref="jedisPool"></property>
+	</bean>
+
+	<context:property-placeholder location="classpath:redis.properties"  ignore-unresolvable="true"/>
+	<!--JedisPool这个bean的构造方法需要多个参数 -->
+	<bean class="redis.clients.jedis.JedisPool" id="jedisPool">
+		<constructor-arg name="poolConfig" ref="jedisPoolConfig"></constructor-arg>
+		<constructor-arg name="host" value="${redis.host}"></constructor-arg>
+		<constructor-arg name="port" value="${redis.port}"></constructor-arg>
+		<constructor-arg name="timeout" value="${redis.timeout}"></constructor-arg>
+		<constructor-arg name="password" value="${redis.password}"></constructor-arg>
+		<constructor-arg name="database" value="${redis.database}"></constructor-arg>
+	</bean>
+	
+	
+	<bean class="redis.clients.jedis.JedisPoolConfig" id="jedisPoolConfig">
+		<property name="maxIdle" value="${redis.maxIdle}" />
+		<property name="minIdle" value="${redis.minIdle}" />
+		<property name="maxTotal" value="${redis.maxTotal}" />
+		<property name="maxWaitMillis" value="${redis.maxWaitMillis}" />
+		<property name="testOnBorrow" value="${redis.testOnBorrow}" />
+		<property name="blockWhenExhausted" value="${redis.blockWhenExhausted}" />
+	</bean>
+
+</beans>

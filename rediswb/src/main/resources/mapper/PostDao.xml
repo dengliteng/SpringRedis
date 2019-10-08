@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.ybzy.rediswb.dao.PostDao">
+	<insert id="insert" parameterType="cn.ybzy.rediswb.model.Post">
+		insert into t_posts (content,create_time,userid)
+		values (#{content},#{createTime},#{user.id})
+	</insert>
+	
+	<select id="getPostByUid" resultType="cn.ybzy.rediswb.model.Post">
+		select id,content,create_time,userid from t_posts
+		where userid=#{uid} order by create_time desc
+	</select>
+	
+	<select id="getHomePostByUid" resultMap="homePostResultMap">
+		SELECT p.id,p.content,p.create_time,p.userid,u.username
+		FROM t_posts p,t_users u
+		WHERE p.userid=u.id 
+			AND (p.userid=#{uid} OR p.userid IN 
+			(SELECT uf.focus_userid FROM t_users_focus uf WHERE uf.userid=#{uid}))
+		ORDER BY p.create_time DESC
+	</select>
+	
+	<resultMap type="cn.ybzy.rediswb.model.Post" id="homePostResultMap">
+		<id column="id" property="id"/>
+		<result column="content" property="content" />
+		<result column="create_time" property="createTime" />
+		<result column="userid" property="user.id" />
+		<result column="username" property="user.username" />
+	</resultMap>
+	
+	
+	<select id="getLast50Posts" resultMap="homePostResultMap">
+		SELECT p.id,p.content,p.create_time,p.userid,u.username
+		FROM t_posts p,t_users u
+		WHERE p.userid=u.id 
+		ORDER BY p.create_time DESC limit 50
+	</select>
+</mapper>
